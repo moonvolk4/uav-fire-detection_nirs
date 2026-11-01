@@ -1,0 +1,49 @@
+# YOLOv8s-p2-CBAM: P2 head + CBAM attention для детекции огня/дыма
+# Архитектурные изменения:
+#   1. P2 detection head (stride 4) — для мелких очагов
+#   2. CBAM после C2f в neck — channel + spatial attention
+
+nc: 2  # smoke, fire
+scales:
+  s: [0.33, 0.50, 1024]
+
+backbone:
+  - [-1, 1, Conv, [64, 3, 2]]       # 0-P1/2
+  - [-1, 1, Conv, [128, 3, 2]]      # 1-P2/4
+  - [-1, 3, C2f, [128, True]]       # 2
+  - [-1, 1, Conv, [256, 3, 2]]      # 3-P3/8
+  - [-1, 6, C2f, [256, True]]       # 4
+  - [-1, 1, Conv, [512, 3, 2]]      # 5-P4/16
+  - [-1, 6, C2f, [512, True]]       # 6
+  - [-1, 1, Conv, [1024, 3, 2]]     # 7-P5/32
+  - [-1, 3, C2f, [1024, True]]      # 8
+  - [-1, 1, SPPF, [1024, 5]]        # 9
+
+head:
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]]  # 10
+  - [[-1, 6], 1, Concat, [1]]                     # 11 cat backbone P4
+  - [-1, 3, C2f, [512]]                           # 12
+  - [-1, 1, CBAM, [512]]                          # 13 CBAM attention
+
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]]   # 14
+  - [[-1, 4], 1, Concat, [1]]                     # 15 cat backbone P3
+  - [-1, 3, C2f, [256]]                           # 16
+  - [-1, 1, CBAM, [256]]                          # 17 CBAM attention
+
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]]   # 18
+  - [[-1, 2], 1, Concat, [1]]                     # 19 cat backbone P2
+  - [-1, 3, C2f, [128]]                           # 20 (P2/4-small)
+
+  - [-1, 1, Conv, [128, 3, 2]]                    # 21
+  - [[-1, 17], 1, Concat, [1]]                    # 22 cat head P3
+  - [-1, 3, C2f, [256]]                           # 23 (P3/8-medium)
+
+  - [-1, 1, Conv, [256, 3, 2]]                    # 24
+  - [[-1, 13], 1, Concat, [1]]                    # 25 cat head P4
+  - [-1, 3, C2f, [512]]                           # 26 (P4/16-large)
+
+  - [-1, 1, Conv, [512, 3, 2]]                    # 27
+  - [[-1, 9], 1, Concat, [1]]                     # 28 cat head P5
+  - [-1, 3, C2f, [1024]]                          # 29 (P5/32-xlarge)
+
+  - [[20, 23, 26, 29], 1, Detect, [nc]]           # 30 Detect(P2, P3, P4, P5)

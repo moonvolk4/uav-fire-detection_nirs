@@ -1,0 +1,13 @@
+# UAV IR Fire Detection Dataset Config
+# Формат: ultralytics YOLO
+
+path: /app/data/processed
+train: train/images
+val: val/images
+test: test/images
+
+# Классы
+names:
+  0: fire
+  1: smoke
+  2: false_source

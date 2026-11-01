@@ -1,0 +1,22 @@
+services:
+  train:
+    build: .
+    container_name: fire-detection
+    # Доступ к GPU
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    volumes:
+      # Монтируем данные и результаты чтобы не терять при пересборке
+      - ./data:/app/data
+      - ./runs:/app/runs
+      - ./configs:/app/configs
+    # Shared memory для DataLoader
+    shm_size: '8g'
+    # Интерактивный режим
+    stdin_open: true
+    tty: true
